@@ -4,6 +4,7 @@ const WorkoutPlan = require('../models/WorkoutPlan');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const OpenAI = require('openai');
+const healthRecommendations = require('../utils/healthRecommendations');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
@@ -236,6 +237,40 @@ async function generateWorkoutFeedback(exercises, duration) {
     }
 }
 
+// Helper function to get health recommendations
+function getHealthRecommendations(healthInfo) {
+    const recommendations = [];
+    
+    if (healthInfo.medicalConditions) {
+        healthInfo.medicalConditions.forEach(condition => {
+            const conditionLower = condition.toLowerCase();
+            if (healthRecommendations.diseases[conditionLower]) {
+                recommendations.push(healthRecommendations.diseases[conditionLower]);
+            }
+        });
+    }
+    
+    if (healthInfo.injuries) {
+        healthInfo.injuries.forEach(injury => {
+            const injuryLower = injury.toLowerCase();
+            if (healthRecommendations.injuries[injuryLower]) {
+                recommendations.push(healthRecommendations.injuries[injuryLower]);
+            }
+        });
+    }
+    
+    if (healthInfo.limitations) {
+        healthInfo.limitations.forEach(limitation => {
+            const limitationLower = limitation.toLowerCase();
+            if (healthRecommendations.limitations[limitationLower]) {
+                recommendations.push(healthRecommendations.limitations[limitationLower]);
+            }
+        });
+    }
+    
+    return recommendations;
+}
+
 // Create a new workout plan
 router.post('/', auth, async (req, res) => {
     try {
@@ -245,6 +280,9 @@ router.post('/', auth, async (req, res) => {
         if (!name || !fitnessLevel || !goal || !schedule) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
+
+        // Get health recommendations
+        const healthRecommendations = getHealthRecommendations(healthInfo);
 
         // Generate workout routine
         const workouts = await generateWorkoutRoutine({
@@ -265,7 +303,8 @@ router.post('/', auth, async (req, res) => {
             healthInfo,
             schedule,
             workouts,
-            status: 'active'
+            status: 'active',
+            healthRecommendations // Add health recommendations to the plan
         });
 
         await workoutPlan.save();

@@ -97,6 +97,10 @@ const workoutPlanSchema = new mongoose.Schema({
         medicalConditions: [String],
         limitations: [String]
     },
+    healthRecommendations: [{
+        warning: String,
+        recommendations: [String]
+    }],
     schedule: {
         daysPerWeek: {
             type: Number,

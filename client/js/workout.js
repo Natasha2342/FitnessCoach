@@ -42,8 +42,24 @@ function displayWorkoutPlan(workoutPlan) {
         return;
     }
 
+    // Generate health recommendations section if they exist
+    const healthRecommendationsSection = workoutPlan.healthRecommendations && workoutPlan.healthRecommendations.length > 0 ? `
+        <div class="health-recommendations-section">
+            <h3><i class="fas fa-exclamation-triangle"></i> Health Recommendations</h3>
+            ${workoutPlan.healthRecommendations.map(rec => `
+                <div class="health-recommendation">
+                    <h4>${rec.warning}</h4>
+                    <ul>
+                        ${rec.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('')}
+        </div>
+    ` : '';
+
     const workoutHTML = `
         <div class="workout-plan">
+            ${healthRecommendationsSection}
             <div class="plan-header">
                 <h2>Your Personalized Workout Plan</h2>
                 <p class="plan-meta">Goal: ${workoutPlan.goal} | Level: ${workoutPlan.level}</p>
@@ -250,125 +266,93 @@ async function viewDetails(workoutId) {
 }
 
 function showWorkoutDetails(workout) {
+    const detailsContainer = document.getElementById('workout-details');
+    if (!detailsContainer) return;
+
+    // Generate health recommendations section if they exist
+    const healthRecommendationsSection = workout.healthRecommendations && workout.healthRecommendations.length > 0 ? `
+        <div class="health-recommendations-section">
+            <h3><i class="fas fa-exclamation-triangle"></i> Health Recommendations</h3>
+            ${workout.healthRecommendations.map(rec => `
+                <div class="health-recommendation">
+                    <h4>${rec.warning}</h4>
+                    <ul>
+                        ${rec.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('')}
+        </div>
+    ` : '';
+
     const detailsHTML = `
-        <div class="workout-details-view">
-            <div class="details-header">
-                <h2>${workout.name || 'Unnamed Plan'}</h2>
+        <div class="workout-details">
+            ${healthRecommendationsSection}
+            <div class="details-section">
+                <h3>Workout Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <i class="fas fa-dumbbell"></i>
+                        <span>Fitness Level: ${workout.fitnessLevel}</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-bullseye"></i>
+                        <span>Goal: ${workout.goal}</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>Days per Week: ${workout.schedule?.daysPerWeek || 'N/A'}</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Session Duration: ${workout.schedule?.sessionDuration || 'N/A'} minutes</span>
+                    </div>
+                </div>
             </div>
-            <div class="details-content">
+            ${workout.healthInfo?.injuries || workout.healthInfo?.medicalConditions || workout.healthInfo?.limitations ? `
                 <div class="details-section">
-                    <h3>Basic Information</h3>
-                    <div class="info-grid">
+                    <h3>Health Information</h3>
+                    ${workout.healthInfo.injuries ? `
                         <div class="info-item">
-                            <i class="fas fa-level-up-alt"></i>
-                            <span>Fitness Level: ${workout.fitnessLevel || 'Not specified'}</span>
+                            <i class="fas fa-band-aid"></i>
+                            <span>Injuries: ${workout.healthInfo.injuries}</span>
                         </div>
+                    ` : ''}
+                    ${workout.healthInfo.medicalConditions ? `
                         <div class="info-item">
-                            <i class="fas fa-bullseye"></i>
-                            <span>Goal: ${workout.goal || 'Not specified'}</span>
+                            <i class="fas fa-notes-medical"></i>
+                            <span>Medical Conditions: ${workout.healthInfo.medicalConditions}</span>
                         </div>
+                    ` : ''}
+                    ${workout.healthInfo.limitations ? `
                         <div class="info-item">
-                            <i class="fas fa-calendar"></i>
-                            <span>Duration: ${workout.duration || 'Not specified'} minutes</span>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Limitations: ${workout.healthInfo.limitations}</span>
                         </div>
-                    </div>
+                    ` : ''}
                 </div>
-                <div class="details-section">
-                    <h3>Physical Information</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <i class="fas fa-ruler-vertical"></i>
-                            <span>Height: ${workout.physicalInfo?.height || 'N/A'}cm</span>
-                        </div>
-                        <div class="info-item">
-                            <i class="fas fa-weight"></i>
-                            <span>Weight: ${workout.physicalInfo?.weight || 'N/A'}kg</span>
-                        </div>
-                        <div class="info-item">
-                            <i class="fas fa-birthday-cake"></i>
-                            <span>Age: ${workout.physicalInfo?.age || 'N/A'}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="details-section">
-                    <h3>Schedule</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <i class="fas fa-calendar"></i>
-                            <span>Days per Week: ${workout.schedule?.daysPerWeek || 'N/A'}</span>
-                        </div>
-                        <div class="info-item">
-                            <i class="fas fa-clock"></i>
-                            <span>Session Duration: ${workout.schedule?.sessionDuration || 'N/A'} minutes</span>
-                        </div>
-                    </div>
-                </div>
-                ${workout.healthInfo?.injuries || workout.healthInfo?.medicalConditions || workout.healthInfo?.limitations ? `
-                    <div class="details-section">
-                        <h3>Health Information</h3>
-                        ${workout.healthInfo.injuries ? `
-                            <div class="info-item">
-                                <i class="fas fa-band-aid"></i>
-                                <span>Injuries: ${workout.healthInfo.injuries}</span>
-                            </div>
-                        ` : ''}
-                        ${workout.healthInfo.medicalConditions ? `
-                            <div class="info-item">
-                                <i class="fas fa-notes-medical"></i>
-                                <span>Medical Conditions: ${workout.healthInfo.medicalConditions}</span>
-                            </div>
-                        ` : ''}
-                        ${workout.healthInfo.limitations ? `
-                            <div class="info-item">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <span>Limitations: ${workout.healthInfo.limitations}</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                ` : ''}
-                <div class="details-section">
-                    <h3>Your Personalized Workout Routine</h3>
-                    ${workout.workouts && workout.workouts.length > 0 ? `
-                        <div class="workouts-list">
-                            ${workout.workouts.map((workout, index) => `
-                                <div class="workout-item">
-                                    <h4>${workout.name}</h4>
-                                    <div class="workout-meta">
-                                        <span><i class="fas fa-clock"></i> ${workout.duration} minutes</span>
-                                        <span><i class="fas fa-level-up-alt"></i> ${workout.difficulty}</span>
-                                        <span><i class="fas fa-dumbbell"></i> ${workout.type}</span>
-                                    </div>
-                                    <div class="exercises-list">
-                                        ${workout.exercises.map(exercise => `
-                                            <div class="exercise-item">
-                                                <h5>${exercise.name}</h5>
-                                                <div class="exercise-details">
-                                                    ${exercise.sets ? `
-                                                        <span>${exercise.sets} sets × ${exercise.reps} reps</span>
-                                                        ${exercise.weight ? `<span>@ ${exercise.weight}kg</span>` : ''}
-                                                    ` : `
-                                                        <span>Duration: ${exercise.duration} seconds</span>
-                                                        ${exercise.rest ? `<span>Rest: ${exercise.rest} seconds</span>` : ''}
-                                                    `}
-                                                    ${exercise.notes ? `<p class="exercise-notes">${exercise.notes}</p>` : ''}
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
+            ` : ''}
+            <div class="details-section">
+                <h3>Your Personalized Workout Routine</h3>
+                ${workout.workouts.map((workout, index) => `
+                    <div class="workout-day">
+                        <h4>Day ${index + 1}</h4>
+                        <div class="exercises-list">
+                            ${workout.exercises.map(exercise => `
+                                <div class="exercise-item">
+                                    <h5>${exercise.name}</h5>
+                                    <p>Sets: ${exercise.sets} | Reps: ${exercise.reps}</p>
+                                    ${exercise.weight ? `<p>Weight: ${exercise.weight}kg</p>` : ''}
+                                    ${exercise.notes ? `<p>Notes: ${exercise.notes}</p>` : ''}
                                 </div>
                             `).join('')}
                         </div>
-                    ` : `
-                        <div class="no-workouts">
-                            <p>No workouts have been generated for this plan yet.</p>
-                        </div>
-                    `}
-                </div>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `;
 
-    workoutContainer.innerHTML = detailsHTML;
+    detailsContainer.innerHTML = detailsHTML;
 }
 
 class WorkoutManager {
@@ -604,12 +588,28 @@ class WorkoutManager {
     showWorkoutDetails(plan) {
         if (!this.workoutContainer) return;
 
+        // Generate health recommendations section if they exist
+        const healthRecommendationsSection = plan.healthRecommendations && plan.healthRecommendations.length > 0 ? `
+            <div class="health-recommendations-section">
+                <h3><i class="fas fa-exclamation-triangle"></i> Health Recommendations</h3>
+                ${plan.healthRecommendations.map(rec => `
+                    <div class="health-recommendation">
+                        <h4>${rec.warning}</h4>
+                        <ul>
+                            ${rec.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
         const detailsHTML = `
             <div class="workout-details-view">
                 <div class="details-header">
                     <h2>${plan.name || 'Unnamed Plan'}</h2>
                 </div>
                 <div class="details-content">
+                    ${healthRecommendationsSection}
                     <div class="details-section">
                         <h3>Basic Information</h3>
                         <div class="info-grid">
