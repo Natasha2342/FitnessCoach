@@ -3,12 +3,11 @@ const router = express.Router();
 const WorkoutPlan = require('../models/WorkoutPlan');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const healthRecommendations = require('../utils/healthRecommendations');
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Generate workout plan
 router.post('/plan', auth, async (req, res) => {
@@ -16,33 +15,35 @@ router.post('/plan', auth, async (req, res) => {
         const { goal, level, preferences } = req.body;
         console.log('Generating workout plan with:', { goal, level, preferences });
 
-        // Generate workout plan using OpenAI
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a professional fitness coach creating personalized workout plans. Create a structured workout plan with specific exercises, sets, reps, and rest periods. Return the response in JSON format with the following structure: { workouts: [{ name: string, type: string, duration: number, difficulty: string, exercises: [{ name: string, sets: number, reps: number, weight?: number, duration?: number, notes?: string }] }] }"
-                },
+        // Get the generative model
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+        // Start a chat
+        const chat = model.startChat({
+            history: [
                 {
                     role: "user",
-                    content: `Create a workout plan for a ${level} level user with the goal of ${goal}. 
-                             User preferences: ${JSON.stringify(preferences)}`
-                }
-            ]
+                    parts: "You are a professional fitness coach creating personalized workout plans. Create a structured workout plan with specific exercises, sets, reps, and rest periods. Return the response in JSON format with the following structure: { workouts: [{ name: string, type: string, duration: number, difficulty: string, exercises: [{ name: string, sets: number, reps: number, weight?: number, duration?: number, notes?: string }] }] }"
+                },
+            ],
         });
 
-        console.log('OpenAI response:', completion.choices[0].message.content);
+        // Send message and get response
+        const result = await chat.sendMessage(`Create a workout plan for a ${level} level user with the goal of ${goal}. User preferences: ${JSON.stringify(preferences)}`);
+        const response = await result.response;
+        const text = response.text();
+
+        console.log('Gemini response:', text);
 
         // Parse the AI response and create structured workout plan
         const workoutPlan = new WorkoutPlan({
             user: req.user.userId,
             name: `${goal} - ${level} Plan`,
-            description: completion.choices[0].message.content,
+            description: text,
             duration: 4, // 4 weeks default
             goals: [goal],
             fitnessLevel: level,
-            workouts: parseAIWorkoutPlan(completion.choices[0].message.content)
+            workouts: parseAIWorkoutPlan(text)
         });
 
         console.log('Saving workout plan:', workoutPlan);
@@ -214,23 +215,21 @@ function parseAIWorkoutPlan(aiResponse) {
 // Generate AI feedback for completed workout
 async function generateWorkoutFeedback(exercises, duration) {
     try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a fitness coach providing feedback on completed workouts."
-                },
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const chat = model.startChat({
+            history: [
                 {
                     role: "user",
-                    content: `Provide feedback for this workout:
-                             Duration: ${duration} minutes
-                             Exercises: ${JSON.stringify(exercises)}`
-                }
-            ]
+                    parts: "You are a fitness coach providing feedback on completed workouts."
+                },
+            ],
         });
 
-        return completion.choices[0].message.content;
+        const result = await chat.sendMessage(`Provide feedback for this workout: Duration: ${duration} minutes Exercises: ${JSON.stringify(exercises)}`);
+        const response = await result.response;
+        const text = response.text();
+
+        return text;
     } catch (error) {
         console.error('Error generating workout feedback:', error);
         return 'Great job completing your workout!';

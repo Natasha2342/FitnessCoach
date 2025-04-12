@@ -1,293 +1,141 @@
-// Chat Elements
-const chatMessages = document.getElementById('chatMessages');
-const chatInput = document.getElementById('chatInput');
-const sendMessage = document.getElementById('sendMessage');
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("Chat.js loaded");
+    const sendBtn = document.getElementById("send-message");
+    const chatInput = document.getElementById("chat-input");
+    const chatMessages = document.getElementById("chat-messages");
 
-// Message Templates
-function createUserMessage(text) {
-    return `
-        <div class="message user-message">
-            <div class="message-content">
-                ${text}
-            </div>
-        </div>
-    `;
-}
+    if (!sendBtn || !chatInput || !chatMessages) {
+        console.error("Required elements not found:", { sendBtn, chatInput, chatMessages });
+        return;
+    }
 
-function createAIMessage(text) {
-    return `
-        <div class="message ai-message">
-            <div class="message-avatar">
-                <span>AI</span>
-            </div>
-            <div class="message-content">
-                ${text}
-            </div>
-        </div>
-    `;
-}
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.log("No authentication token found");
+        appendMessage("⚠️ Please log in to use the chat feature.", "ai");
+        return;
+    }
 
-// Chat History
-let chatHistory = [];
+    const appendMessage = (message, sender = "user") => {
+        console.log(`Appending message from ${sender}:`, message);
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("message", sender);
 
-// Send Message Handler
-async function handleSendMessage() {
-    const message = chatInput.value.trim();
-    if (!message) return;
+        const content = document.createElement("div");
+        content.classList.add("message-content");
+        content.textContent = message;
 
-    // Clear input
-    chatInput.value = '';
-
-    // Add user message to chat
-    chatMessages.insertAdjacentHTML('beforeend', createUserMessage(message));
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    // Add to chat history
-    chatHistory.push({ role: 'user', content: message });
-
-    try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            throw new Error('Please log in to use the chat');
-        }
-
-        // Show typing indicator
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'chat-message bot-message typing';
-        typingDiv.innerHTML = '<div class="message-content"><div class="typing-indicator">AI is typing...</div></div>';
-        chatMessages.appendChild(typingDiv);
+        messageElement.appendChild(content);
+        chatMessages.appendChild(messageElement);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    };
 
-        // Send message to server
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ message })
-        });
-
-        // Remove typing indicator
-        typingDiv.remove();
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to get response');
-        }
-
-        const data = await response.json();
-        chatMessages.insertAdjacentHTML('beforeend', createAIMessage(data.response));
+    // Function to show typing indicator
+    const showTypingIndicator = () => {
+        console.log("Showing typing indicator");
+        const typingElement = document.createElement("div");
+        typingElement.classList.add("message", "ai", "typing-indicator");
+        typingElement.id = "typing-indicator";
+        
+        const content = document.createElement("div");
+        content.classList.add("message-content");
+        content.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+        
+        typingElement.appendChild(content);
+        chatMessages.appendChild(typingElement);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    };
 
-        // Add to chat history
-        chatHistory.push({ role: 'assistant', content: data.response });
-    } catch (error) {
-        console.error('Error:', error);
-        chatMessages.insertAdjacentHTML('beforeend', createAIMessage('Sorry, I encountered an error. Please try again.'));
-    }
-}
+    // Function to remove typing indicator
+    const removeTypingIndicator = () => {
+        console.log("Removing typing indicator");
+        const typingElement = document.getElementById("typing-indicator");
+        if (typingElement) {
+            typingElement.remove();
+        }
+    };
 
-// Event Listeners
-sendMessage.addEventListener('click', handleSendMessage);
-
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        handleSendMessage();
-    }
-});
-
-// Context-aware suggestions
-const commonQuestions = [
-    'How do I perform a proper squat?',
-    'What should I eat before workout?',
-    'How can I prevent injury during exercise?',
-    'What\'s the best way to warm up?',
-    'How many rest days do I need?'
-];
-
-function addSuggestions() {
-    const suggestionsDiv = document.createElement('div');
-    suggestionsDiv.className = 'chat-suggestions';
-    suggestionsDiv.innerHTML = `
-        <p>Common Questions:</p>
-        <div class="suggestion-buttons">
-            ${commonQuestions.map(q => `
-                <button class="suggestion-btn" onclick="suggestQuestion('${q}')">${q}</button>
-            `).join('')}
-        </div>
-    `;
-    chatMessages.appendChild(suggestionsDiv);
-}
-
-function suggestQuestion(question) {
-    chatInput.value = question;
-    handleSendMessage();
-}
-
-// Initialize chat
-function initChat() {
-    // Add welcome message
-    chatMessages.innerHTML = createAIMessage(`
-        Hello! I'm your AI Fitness Coach. I'm here to help you with your fitness journey. 
-        You can ask me questions about:
-        - Workout techniques and form
-        - Nutrition advice
-        - Injury prevention
-        - Progress tracking
-        - Workout modifications
-        
-        How can I assist you today?
-    `);
-    
-    // Add suggestion buttons
-    addSuggestions();
-}
-
-// Initialize chat when the chat section is shown
-document.addEventListener('DOMContentLoaded', () => {
-    if (chatMessages && chatMessages.children.length === 0) {
-        initChat();
-    }
-});
-
-class ChatUI {
-    constructor() {
-        this.messagesContainer = document.getElementById('chat-messages');
-        this.chatInput = document.getElementById('chat-input');
-        this.sendButton = document.getElementById('send-message');
-        this.quickActions = document.querySelectorAll('.quick-action-btn');
-        
-        this.initializeEventListeners();
-        this.adjustTextareaHeight();
-    }
-
-    initializeEventListeners() {
-        // Send message on button click
-        this.sendButton.addEventListener('click', () => this.sendMessage());
-
-        // Send message on Enter (but new line on Shift+Enter)
-        this.chatInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-
-        // Auto-resize textarea
-        this.chatInput.addEventListener('input', () => this.adjustTextareaHeight());
-
-        // Quick action buttons
-        this.quickActions.forEach(button => {
-            button.addEventListener('click', () => {
-                const query = button.dataset.query;
-                if (query) {
-                    this.chatInput.value = query;
-                    this.sendMessage();
-                }
-            });
-        });
-    }
-
-    adjustTextareaHeight() {
-        const textarea = this.chatInput;
-        textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
-    }
-
-    async sendMessage() {
-        const message = this.chatInput.value.trim();
+    const sendMessage = async () => {
+        const message = chatInput.value.trim();
         if (!message) return;
 
-        // Add user message to chat
-        this.addMessage(message, 'user');
-        
-        // Clear input
-        this.chatInput.value = '';
-        this.adjustTextareaHeight();
+        console.log("Sending message:", message);
+        // Append user's message
+        appendMessage(message, "user");
+        chatInput.value = "";
+
+        // Show typing indicator
+        showTypingIndicator();
 
         try {
-            // Show typing indicator
-            this.showTypingIndicator();
-
-            // Send to backend and get response
-            const response = await this.sendToBackend(message);
-            
-            // Remove typing indicator and show response
-            this.removeTypingIndicator();
-            this.addMessage(response, 'ai');
-        } catch (error) {
-            console.error('Error sending message:', error);
-            this.removeTypingIndicator();
-            this.addMessage('Sorry, I encountered an error. Please try again.', 'ai');
-        }
-    }
-
-    addMessage(content, type) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
-        messageDiv.innerHTML = `
-            <div class="message-content">
-                ${content}
-            </div>
-        `;
-        
-        this.messagesContainer.appendChild(messageDiv);
-        this.scrollToBottom();
-    }
-
-    showTypingIndicator() {
-        const indicator = document.createElement('div');
-        indicator.className = 'message ai typing-indicator';
-        indicator.innerHTML = `
-            <div class="message-content">
-                <div class="typing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
-        `;
-        this.messagesContainer.appendChild(indicator);
-        this.scrollToBottom();
-    }
-
-    removeTypingIndicator() {
-        const indicator = this.messagesContainer.querySelector('.typing-indicator');
-        if (indicator) {
-            indicator.remove();
-        }
-    }
-
-    scrollToBottom() {
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
-    }
-
-    async sendToBackend(message) {
-        try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
+            console.log("Making API request to /api/chat");
+            const res = await fetch("/api/chat", {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({ message })
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to send message');
+            // Remove typing indicator before processing response
+            removeTypingIndicator();
+
+            console.log("API response status:", res.status);
+            const data = await res.json();
+            console.log("API response data:", data);
+
+            if (res.ok) {
+                appendMessage(data.response, "ai");
+            } else {
+                console.error("API error:", data.error);
+                if (res.status === 401) {
+                    appendMessage("⚠️ Your session has expired. Please log in again.", "ai");
+                    // Redirect to login page after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    appendMessage(`⚠️ ${data.error || 'There was an error. Please try again later.'}`, "ai");
+                }
             }
-
-            const data = await response.json();
-            return data.response;
-        } catch (error) {
-            console.error('Error:', error);
-            throw error;
+        } catch (err) {
+            // Remove typing indicator in case of error
+            removeTypingIndicator();
+            
+            console.error("Chat request failed:", err);
+            appendMessage("⚠️ Failed to connect to the server. Please check your internet connection.", "ai");
         }
-    }
-}
+    };
 
-// Initialize chat when DOM loads
-document.addEventListener('DOMContentLoaded', () => {
-    new ChatUI();
-}); 
+    // Send message on button click
+    sendBtn.addEventListener("click", () => {
+        console.log("Send button clicked");
+        sendMessage();
+    });
+
+    // Send message on Enter key
+    chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            console.log("Enter key pressed");
+            sendMessage();
+        }
+    });
+
+    // Quick action buttons
+    document.querySelectorAll(".quick-action-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            console.log("Quick action button clicked:", btn.dataset.query);
+            chatInput.value = btn.dataset.query;
+            sendMessage();
+        });
+    });
+
+    // Auto-resize textarea
+    chatInput.addEventListener("input", function() {
+        this.style.height = "auto";
+        this.style.height = (this.scrollHeight) + "px";
+    });
+});

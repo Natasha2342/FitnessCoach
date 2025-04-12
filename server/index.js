@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const workoutRoutes = require('./routes/workouts');
 const chatRoutes = require('./routes/chat');
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

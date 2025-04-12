@@ -1,13 +1,18 @@
+// chat.js (server-side controller for chat)
 const express = require('express');
 const router = express.Router();
-const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const auth = require('../middleware/auth');
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Check if GEMINI_API_KEY is set
+if (!process.env.GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY is not set in environment variables');
+    throw new Error('GEMINI_API_KEY is required');
+}
 
-// System message for the AI coach
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// System message defining the AI's persona and responsibilities
 const SYSTEM_MESSAGE = `You are an expert AI fitness coach with deep knowledge of exercise science, nutrition, and health. 
 Your role is to provide accurate, helpful, and motivating guidance to users while maintaining a professional and supportive tone.
 You should:
@@ -18,116 +23,51 @@ You should:
 5. Encourage sustainable habits over quick fixes
 6. Be motivating while maintaining realism`;
 
-// Main chat route
-router.post('/', async (req, res) => {
+// Chat route - accepts user message and returns AI response
+router.post('/', auth, async (req, res) => {
     try {
+        console.log('Chat request received from user:', req.user.userId);
         const { message } = req.body;
-        
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a professional fitness coach. Provide helpful, accurate, and safe fitness advice."
-                },
+
+        if (!message || message.trim() === "") {
+            console.log('Empty message received');
+            return res.status(400).json({ error: 'Message cannot be empty' });
+        }
+
+        console.log('Initializing Gemini model');
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+        console.log('Starting chat session');
+        const chat = model.startChat({
+            history: [
                 {
                     role: "user",
-                    content: message
-                }
-            ]
+                    parts: SYSTEM_MESSAGE,
+                },
+            ],
         });
 
-        res.json({
-            message: completion.choices[0].message.content
-        });
+        console.log('Sending message to Gemini:', message);
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+        const text = response.text();
+        console.log('Received response from Gemini');
+
+        res.status(200).json({ response: text });
+
     } catch (error) {
         console.error('Chat Error:', error);
-        res.status(500).json({ error: 'Failed to process chat message' });
+        // Send more specific error messages based on the error type
+        if (error.message.includes('API key')) {
+            res.status(500).json({ error: 'AI service configuration error' });
+        } else if (error.message.includes('network')) {
+            res.status(503).json({ error: 'AI service is temporarily unavailable' });
+        } else if (error.message.includes('models/gemini')) {
+            res.status(500).json({ error: 'AI model configuration error. Please contact support.' });
+        } else {
+            res.status(500).json({ error: 'Failed to process chat message: ' + error.message });
+        }
     }
 });
 
-// Form check route
-router.post('/form-check', async (req, res) => {
-    try {
-        const { formData } = req.body;
-        
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a professional fitness coach. Review the form data and provide feedback."
-                },
-                {
-                    role: "user",
-                    content: JSON.stringify(formData)
-                }
-            ]
-        });
-
-        res.json({
-            feedback: completion.choices[0].message.content
-        });
-    } catch (error) {
-        console.error('Form Check Error:', error);
-        res.status(500).json({ error: 'Failed to process form check' });
-    }
-});
-
-// Nutrition advice route
-router.post('/nutrition', async (req, res) => {
-    try {
-        const { query } = req.body;
-        
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a professional nutritionist. Provide helpful and accurate nutrition advice."
-                },
-                {
-                    role: "user",
-                    content: query
-                }
-            ]
-        });
-
-        res.json({
-            advice: completion.choices[0].message.content
-        });
-    } catch (error) {
-        console.error('Nutrition Error:', error);
-        res.status(500).json({ error: 'Failed to process nutrition query' });
-    }
-});
-
-// Recovery advice route
-router.post('/recovery', async (req, res) => {
-    try {
-        const { query } = req.body;
-        
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a professional fitness coach specializing in recovery. Provide helpful and accurate recovery advice."
-                },
-                {
-                    role: "user",
-                    content: query
-                }
-            ]
-        });
-
-        res.json({
-            advice: completion.choices[0].message.content
-        });
-    } catch (error) {
-        console.error('Recovery Error:', error);
-        res.status(500).json({ error: 'Failed to process recovery query' });
-    }
-});
-
-module.exports = router; 
+module.exports = router;
