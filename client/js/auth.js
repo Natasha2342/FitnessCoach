@@ -167,7 +167,7 @@ function updateAuthUI() {
     const navLinks = document.querySelectorAll('.nav-link');
 
     if (token) {
-        // Show full navigation for logged-in users
+        // User is logged in
         if (navbar) navbar.style.display = 'flex';
         navLinks.forEach(link => {
             if (!link.closest('.auth-links')) {
@@ -187,7 +187,7 @@ function updateAuthUI() {
             }
         }
     } else {
-        // Show limited navigation for non-logged in users
+        // User is not logged in
         if (navbar) navbar.style.display = 'flex';
         navLinks.forEach(link => {
             if (!link.closest('.auth-links') && !['/', '/login', '/signup'].includes(link.getAttribute('href'))) {
@@ -207,4 +207,83 @@ function updateAuthUI() {
 document.addEventListener('DOMContentLoaded', updateAuthUI);
 
 // Export for use in other files
-window.updateAuthUI = updateAuthUI; 
+window.updateAuthUI = updateAuthUI;
+
+// Check authentication status and modify UI accordingly
+document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    const authLinks = document.querySelector('.auth-links');
+    const logoutBtn = document.getElementById('logout-btn');
+    const mainContent = document.querySelector('main');
+    const navbar = document.querySelector('.navbar');
+
+    if (token) {
+        // User is logged in
+        if (authLinks) {
+            authLinks.innerHTML = `
+                <button id="logout-btn" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            `;
+        }
+
+        // Show navbar
+        if (navbar) {
+            navbar.style.display = 'flex';
+        }
+
+        // Modify home page content for logged-in users
+        if (window.location.pathname === '/') {
+            const userData = JSON.parse(localStorage.getItem('userData'));
+            const username = userData ? userData.name : 'Fitness Enthusiast';
+            
+            mainContent.innerHTML = `
+                <section class="parallax-section hero-parallax">
+                    <div class="parallax-content">
+                        <h1>Welcome Back, ${username}!</h1>
+                        <p>Ready to crush your fitness goals today? Your AI coach is here to help you stay on track and achieve greatness.</p>
+                        <div class="cta-buttons">
+                            <a href="/workouts" class="btn btn-primary"><i class="fas fa-dumbbell"></i> Start Workout</a>
+                            <a href="/chat" class="btn btn-secondary"><i class="fas fa-comments"></i> Chat with Coach</a>
+                        </div>
+                        <div class="motivational-content">
+                            <div class="motivational-card">
+                                <i class="fas fa-quote-left"></i>
+                                <p class="quote">"The only bad workout is the one that didn't happen."</p>
+                                <p class="author">- Your AI Coach</p>
+                            </div>
+                            <div class="motivational-card">
+                                <i class="fas fa-lightbulb"></i>
+                                <p class="tip">Today's Tip</p>
+                                <p class="tip-content">Stay hydrated and take short breaks between sets for optimal performance.</p>
+                            </div>
+                            <div class="motivational-card">
+                                <i class="fas fa-star"></i>
+                                <p class="challenge">Daily Challenge</p>
+                                <p class="challenge-content">Complete 3 sets of push-ups with perfect form.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+    } else {
+        // User is not logged in
+        if (authLinks) {
+            authLinks.innerHTML = `
+                <a href="/login" class="nav-link"><i class="fas fa-sign-in-alt"></i> Login</a>
+                <a href="/signup" class="nav-link"><i class="fas fa-user-plus"></i> Sign Up</a>
+            `;
+        }
+        
+        // Hide navbar on home page for non-logged in users
+        if (window.location.pathname === '/' && navbar) {
+            navbar.style.display = 'none';
+        }
+    }
+
+    // Add logout event listener
+    document.getElementById('logout-btn')?.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+        window.location.href = '/';
+    });
+}); 
